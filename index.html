@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d17">
+  <meta name="description" content="Play a sampled piano with a 2D neon visualizer, MIDI support, and custom sounds.">
+  <title>Luma Keys — Piano Studio</title>
+  <link rel="stylesheet" href="./src/style.css">
+  <script src="./src/midi.js" defer></script>
+  <script src="./assets/piano/yamaha-c5.js" defer></script>
+  <script src="./assets/piano/steinway-b.js" defer></script>
+  <script src="./src/audio.js" defer></script>
+  <script src="./src/visual.js" defer></script>
+  <script src="./src/transport.js" defer></script>
+  <script src="./src/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand" aria-label="Luma Keys">
+        <span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="visually-hidden">Luma Keys</span>
+      </div>
+      <div class="header-actions">
+        <button id="togglePlayer" type="button" class="button top-button" aria-expanded="false" aria-controls="player" title="MIDI Player"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></svg><span>Player</span></button>
+        <button id="openSettings" type="button" class="button top-button" aria-expanded="false" aria-controls="settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="2" fill="#151020"/><circle cx="15" cy="12" r="2" fill="#151020"/><circle cx="11" cy="17" r="2" fill="#151020"/></svg><span>Menu</span></button>
+        <button class="icon-button stage-button" id="mute" type="button" aria-label="Mute" title="Mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4V9Zm12 0a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg></button>
+        <button class="button import-button" type="button" data-import-midi aria-label="Import MIDI" title="Import MIDI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg><span>Import MIDI</span></button>
+        <span class="header-divider"></span>
+        <button id="hideUi" class="icon-button" type="button" title="Hide interface (Esc)" aria-label="Hide interface"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+        <button id="fullscreen" class="icon-button" type="button" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></svg></button>
+      </div>
+    </div>
+  </header>
+  <main class="shell">
+    <h1 class="visually-hidden">Luma Keys — Virtual Piano</h1>
+    <div class="workspace">
+      <section class="instrument" aria-label="Virtual Piano">
+        <div class="screen" id="screen">
+          <canvas id="visualizer" aria-hidden="true"></canvas>
+          <div class="drop-prompt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg> Drop a MIDI file</div>
+        </div>
+        <div id="keyboard" class="keyboard" aria-label="Piano keys"></div>
+      </section>
+      <aside class="inspector" id="settings" aria-label="Piano Settings" hidden>
+        <div class="overlay-heading"><h2>Settings</h2><button id="closeSettings" type="button" class="icon-button" aria-label="Close settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <div class="panel-tabs" role="tablist" aria-label="Settings">
+          <button role="tab" type="button" id="tab-effects" aria-selected="true" aria-controls="panel-effects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 14 9l6.5 2-6.5 2-2 6.5-2-6.5-6.5-2L10 9 12 2.5ZM20 15v5m-2.5-2.5h5M5 3v4M3 5h4"/></svg> Effects</button>
+          <button role="tab" type="button" id="tab-sound" aria-selected="false" aria-controls="panel-sound" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4V9Zm12 0a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg> Sound</button>
+          <button role="tab" type="button" id="tab-keys" aria-selected="false" aria-controls="panel-keys" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01m3.3 0h.01m3.3 0h.01m3.3 0h.01M7 12h.01m3.3 0h.01m3.3 0h.01m3.3 0h.01M8 15h8"/></svg> Keys</button>
+        </div>
+        <section class="panel-content" id="panel-effects" role="tabpanel" aria-labelledby="tab-effects">
+          <div class="panel-heading"><h2>Palette</h2><button class="text-button" id="resetEffects" type="button" title="Reset effects" aria-label="Reset effects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9a7 7 0 1 1 0 6M5 4v5h5"/></svg></button></div>
+          <div class="palettes" aria-label="Color palette">
+            <button type="button" data-palette="neon" aria-label="Neon" aria-pressed="true" title="Neon"></button>
+            <button type="button" data-palette="aurora" aria-label="Aurora" aria-pressed="false" title="Aurora"></button>
+            <button type="button" data-palette="ember" aria-label="Ember" aria-pressed="false" title="Ember"></button>
+            <button type="button" data-palette="ice" aria-label="Ice" aria-pressed="false" title="Ice"></button>
+            <button type="button" data-palette="lime" aria-label="Lime" aria-pressed="false" title="Lime"></button>
+            <label class="custom-palette" title="Custom color"><span aria-hidden="true">+</span><input id="customColor" type="color" value="#38f2d1" aria-label="Custom effect color"></label>
+          </div>
+          <div class="panel-divider"></div>
+          <h2>Intensity</h2>
+          <div class="ranges"><label class="range-field" for="glow"><span>Glow</span><output id="glowValue">88%</output><input id="glow" type="range" min="0" max="100" value="88"></label><label class="range-field" for="bloom"><span>Halo size</span><output id="bloomValue">65%</output><input id="bloom" type="range" min="0" max="100" value="65"></label><label class="range-field" for="density"><span>Particle density</span><output id="densityValue">66%</output><input id="density" type="range" min="0" max="100" value="66"></label><label class="range-field" for="trail"><span>Trail length</span><output id="trailValue">62%</output><input id="trail" type="range" min="0" max="100" value="62"></label></div>
+          <div class="panel-divider"></div>
+          <div class="toggles"><label class="toggle-row"><span>Particles</span><input id="particles" type="checkbox" checked><i class="switch"></i></label><label class="toggle-row"><span>Light ripples</span><input id="waves" type="checkbox" checked><i class="switch"></i></label><label class="toggle-row"><span>Note halos</span><input id="atmosphere" type="checkbox" checked><i class="switch"></i></label></div>
+        </section>
+        <section class="panel-content" id="panel-sound" role="tabpanel" aria-labelledby="tab-sound" hidden>
+          <div class="panel-heading"><h2>Instrument</h2><button id="resetSound" class="text-button" type="button">Reset sound</button></div>
+          <label class="select-field">Piano sound<span><select id="instrument"><option value="steinway" selected>Steinway B · Concert grand</option><option value="grand">Yamaha C5 · Acoustic grand</option></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+          <label class="select-field">Keyboard touch<span><select id="touch"><option value="soft">Soft</option><option value="balanced" selected>Balanced</option><option value="strong">Strong</option></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+          <div class="ranges"><label class="range-field" for="volume"><span>Volume</span><output id="volumeValue">80%</output><input id="volume" type="range" min="0" max="100" value="80"></label><label class="range-field" for="reverb"><span>Reverb</span><output id="reverbValue">8%</output><input id="reverb" type="range" min="0" max="100" value="8"></label><label class="range-field" for="release"><span>Release time</span><output id="releaseValue">72%</output><input id="release" type="range" min="0" max="100" value="72"></label></div>
+          <p class="attribution">Steinway B · <a href="https://versilian-studios.com/vcsl/" target="_blank" rel="noopener">Versilian Community Sample Library</a> · <a href="https://github.com/StanislavMakhnytskyi/stapiano-samples/tree/main/steinway-b" target="_blank" rel="noopener">StaPiano</a> · CC0.</p>
+          <p class="attribution"><a href="https://sfzinstruments.github.io/pianos/salamander/" target="_blank" rel="noopener">Salamander Grand Piano</a> · Alexander Holm · <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a></p>
+          <div class="panel-divider"></div>
+          <h2>Custom sounds</h2>
+          <p>Add a recording of one note to play it across the keyboard.</p>
+          <button id="importSample" type="button" class="button panel-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg> Add audio</button>
+          <div id="sampleStatus" class="small-status" aria-live="polite"></div>
+          <div id="sampleRootField" hidden>
+            <label class="select-field">Sample root note<span><select id="sampleRoot"></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+          </div>
+        </section>
+        <section class="panel-content" id="panel-keys" role="tabpanel" aria-labelledby="tab-keys" hidden>
+          <h2>Key labels</h2>
+          <label class="select-field">Display<span><select id="labels"><option value="both">Notes and key bindings</option><option value="notes">Notes only</option><option value="computer">Key bindings only</option><option value="none">No labels</option></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+          <label class="select-field">Note names<span><select id="notation"><option value="letters">C, D, E…</option><option value="solfege">Do, Re, Mi…</option></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+          <button id="editLabels" type="button" class="button panel-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01m3.3 0h.01m3.3 0h.01m3.3 0h.01M7 12h.01m3.3 0h.01m3.3 0h.01m3.3 0h.01M8 15h8"/></svg> Edit labels and bindings</button>
+          <div class="panel-divider"></div>
+          <h2>MIDI Controller</h2>
+          <button id="connectMidi" type="button" class="button panel-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5m6-5v5M7 9h10v3a5 5 0 0 1-5 5v3m0-3a5 5 0 0 1-5-5V9Z"/></svg> Connect MIDI</button>
+          <div id="deviceStatus" class="small-status" aria-live="polite">Waiting for connection</div>
+          <label class="select-field">MIDI input<span><select id="midiInput" disabled><option value="all">All connected inputs</option></select></span></label>
+          <div id="midiActivity" class="small-status" aria-hidden="true"></div>
+        </section>
+      </aside>
+    </div>
+    <section class="player-overlay" id="player" aria-label="MIDI Player" hidden>
+      <div class="overlay-heading"><h2>MIDI Player</h2><button id="closePlayer" type="button" class="icon-button" aria-label="Close player"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+      <div class="mode-select" aria-label="Play mode">
+        <button type="button" data-mode="free" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01m3.3 0h.01m3.3 0h.01m3.3 0h.01M7 12h.01m3.3 0h.01m3.3 0h.01m3.3 0h.01M8 15h8"/></svg> Free Play</button>
+        <button type="button" data-mode="step" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17V5l9-2v12m-9 2c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2Zm9-2c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2Z"/></svg> Any Key</button>
+      </div>
+      <div class="transport">
+      <div class="track-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M10 16v-6l6-1v5m-6 2a1.5 1 0 1 1-3 0 1.5 1 0 0 1 3 0Zm6-2a1.5 1 0 1 1-3 0 1.5 1 0 0 1 3 0Z"/></svg></div>
+      <label class="track-info"><span id="trackName">Aurora</span><span id="trackType">Demo · MIDI</span><select id="trackSelect" aria-label="Choose a MIDI track"></select><span class="track-chevron" aria-hidden="true">⌄</span></label>
+      <div class="transport-controls">
+        <button id="play" class="play-button" type="button" title="Play MIDI (Shift + Space)" aria-label="Play MIDI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 11 7-11 7V5Z" fill="currentColor" stroke="none"/></svg></button>
+        <button id="restart" class="icon-button" type="button" title="Restart track" aria-label="Restart track"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9a7 7 0 1 1 0 6M5 4v5h5"/></svg></button>
+      </div>
+      <span class="time" id="currentTime">0:00</span>
+      <input id="seek" class="seek" type="range" min="0" max="1000" value="0" aria-label="Playback position">
+      <span class="time" id="duration">0:00</span>
+      <span class="transport-divider"></span>
+      <label class="speed-control"><select id="speed" aria-label="Playback speed"><option value=".5">0.5×</option><option value=".75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></label>
+      </div>
+    </section>
+    <div class="stage-strip"><button id="sustain" type="button" class="pedal-toggle" aria-pressed="false" title="Toggle sustain. Hold Space to use the pedal." aria-label="Toggle sustain"><span class="pedal-led" aria-hidden="true"></span><span>Sustain</span><kbd aria-hidden="true">Space</kbd></button><span id="noteReadout" aria-live="off"><i></i> Ready to play</span><div class="octave-controls"><button id="octDown" type="button" aria-label="One octave lower" title="Octave down ([)">−</button><span>Octave <b id="octaveValue">0</b></span><button id="octUp" type="button" aria-label="One octave higher" title="Octave up (])">+</button></div></div>
+  </main>
+  <button id="restoreUi" class="icon-button restore-button" type="button" aria-label="Show interface" title="Show interface (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+  <input id="midiFile" type="file" multiple accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
+  <input id="sampleFile" type="file" multiple accept="audio/*,.wav,.mp3,.ogg,.m4a,.flac,.aac" hidden>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="labelDialog">
+    <form method="dialog">
+      <div class="dialog-heading"><h2>Labels and Key Bindings</h2><button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+      <p>Select a field in the Key column and press a key or a Shift combination. Backspace clears the binding.</p>
+      <div class="binding-list" id="bindingList"></div>
+      <div class="dialog-actions"><button id="resetLabels" type="button" class="button">Reset</button><button id="saveLabels" type="button" class="button primary">Save</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
+
+
